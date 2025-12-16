@@ -1,3 +1,4 @@
+# FILE: autoload/GameManager.gd
 extends Node
 
 enum Phase { LOBBY, DRAW, VOICE, RECAP }
@@ -7,11 +8,59 @@ var is_host := false
 var room_code := ""
 
 var finished_players := []
+var drawings_submitted := []  # IDs de jugadores que ya enviaron dibujos
 
 var players := {}      # peer_id -> name
-var drawings := {}     # peer_id -> Image
-var voices := {}       # drawing_id -> Array[audio]
+var drawings := {}     # peer_id -> PackedByteArray (datos PNG)
+var voices := {}       # drawing_id -> PackedByteArray (datos de audio)
+
+# Nueva variable para la ronda de voz
+var current_drawing_index := 0
+var drawings_to_record := []  # IDs de los dibujos que este jugador debe grabar
 
 func reset_game():
 	drawings.clear()
 	voices.clear()
+	drawings_submitted.clear()
+	current_drawing_index = 0
+	drawings_to_record.clear()
+
+# Guardar dibujo localmente
+func save_local_drawing(image_data: PackedByteArray):
+	var my_id = multiplayer.get_unique_id()
+	drawings[my_id] = image_data
+	
+# Obtener la lista de dibujos a grabar (excluyendo el propio)
+func setup_voice_round():
+	var my_id = multiplayer.get_unique_id()
+	drawings_to_record.clear()
+	
+	for player_id in drawings.keys():
+		if player_id != my_id:
+			drawings_to_record.append(player_id)
+	
+	print("Dibujos a grabar: ", drawings_to_record)
+	current_drawing_index = 0
+
+# Obtener el dibujo actual para grabar - CAMBIADO A PackedByteArray
+func get_current_drawing() -> PackedByteArray:
+	if drawings_to_record.size() == 0:
+		return PackedByteArray()
+	
+	if current_drawing_index >= drawings_to_record.size():
+		return PackedByteArray()
+	
+	var player_id = drawings_to_record[current_drawing_index]
+	return drawings.get(player_id, PackedByteArray())
+
+func get_current_player_id() -> int:
+	if current_drawing_index >= drawings_to_record.size():
+		return -1
+	return drawings_to_record[current_drawing_index]
+
+func next_drawing() -> bool:
+	current_drawing_index += 1
+	return current_drawing_index < drawings_to_record.size()
+
+func has_more_drawings() -> bool:
+	return current_drawing_index < drawings_to_record.size()

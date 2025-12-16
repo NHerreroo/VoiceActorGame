@@ -7,20 +7,66 @@ layout_mode = 3
 anchors_preset = 0
 script = ExtResource("1_1r8o5")
 
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 0
+offset_right = 1151.0
+offset_bottom = 649.0
+color = Color(0.2, 0.3, 0.4, 1)
+
 [node name="InfoLabel" type="Label" parent="."]
 layout_mode = 0
-offset_left = 556.0
-offset_top = 61.0
-offset_right = 629.0
-offset_bottom = 84.0
+offset_left = 300.0
+offset_top = 20.0
+offset_right = 850.0
+offset_bottom = 80.0
 text = "Info label"
+horizontal_alignment = 1
+vertical_alignment = 1
 
-[node name="FinishButton" type="Button" parent="."]
+[node name="DrawingTexture" type="TextureRect" parent="."]
 layout_mode = 0
-offset_left = 417.0
-offset_top = 531.0
-offset_right = 797.0
-offset_bottom = 587.0
-text = "Finish Button"
+offset_left = 250.0
+offset_top = 100.0
+offset_right = 900.0
+offset_bottom = 450.0
+expand_mode = 1
+stretch_mode = 3
 
-[connection signal="pressed" from="FinishButton" to="." method="_on_FinishButton_pressed"]
+[node name="TimerLabel" type="Label" parent="."]
+layout_mode = 0
+offset_left = 500.0
+offset_top = 470.0
+offset_right = 650.0
+offset_bottom = 500.0
+text = "Tiempo: 0s / 10s"
+
+[node name="ButtonContainer" type="HBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 350.0
+offset_top = 520.0
+offset_right = 800.0
+offset_bottom = 580.0
+alignment = 1
+
+[node name="RecordButton" type="Button" parent="ButtonContainer"]
+layout_mode = 2
+text = "🎤 Grabar"
+
+[node name="StopButton" type="Button" parent="ButtonContainer"]
+visible = false
+layout_mode = 2
+text = "⏹️ Parar"
+
+[node name="PlayButton" type="Button" parent="ButtonContainer"]
+visible = false
+layout_mode = 2
+text = "▶️ Escuchar"
+
+[node name="FinishButton" type="Button" parent="ButtonContainer"]
+layout_mode = 2
+text = "✅ Confirmar"
+
+[connection signal="pressed" from="ButtonContainer/RecordButton" to="." method="_on_RecordButton_pressed"]
+[connection signal="pressed" from="ButtonContainer/StopButton" to="." method="_on_StopButton_pressed"]
+[connection signal="pressed" from="ButtonContainer/PlayButton" to="." method="_on_PlayButton_pressed"]
+[connection signal="pressed" from="ButtonContainer/FinishButton" to="." method="_on_FinishButton_pressed"]
