@@ -1,0 +1,26 @@
+[gd_scene load_steps=2 format=3 uid="uid://dfo6fnougdu8h"]
+
+[ext_resource type="Script" uid="uid://bcp8iceekeefr" path="res://scripts/voice_round.gd" id="1_1r8o5"]
+
+[node name="VoiceRound" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_1r8o5")
+
+[node name="InfoLabel" type="Label" parent="."]
+layout_mode = 0
+offset_left = 556.0
+offset_top = 61.0
+offset_right = 629.0
+offset_bottom = 84.0
+text = "Info label"
+
+[node name="FinishButton" type="Button" parent="."]
+layout_mode = 0
+offset_left = 417.0
+offset_top = 531.0
+offset_right = 797.0
+offset_bottom = 587.0
+text = "Finish Button"
+
+[connection signal="pressed" from="FinishButton" to="." method="_on_FinishButton_pressed"]

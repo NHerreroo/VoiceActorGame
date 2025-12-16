@@ -1,0 +1,50 @@
+[gd_scene load_steps=3 format=3 uid="uid://cjdjwyy677b7i"]
+
+[ext_resource type="Script" uid="uid://6ofpqe5hmi48" path="res://scripts/drawing_round.gd" id="1_rij82"]
+[ext_resource type="Script" uid="uid://4aiaxr1rv2m" path="res://scripts/drawing_canvas.gd" id="2_rjhmp"]
+
+[node name="DrawingRound" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+script = ExtResource("1_rij82")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 0
+offset_right = 1151.0
+offset_bottom = 649.0
+color = Color(0.55732596, 0.2657073, 0.18738553, 1)
+
+[node name="DrawingCanvas" type="Control" parent="."]
+anchors_preset = 0
+offset_left = 197.0
+offset_top = 154.0
+offset_right = 871.0
+offset_bottom = 493.0
+script = ExtResource("2_rjhmp")
+
+[node name="TimerLabel" type="Label" parent="."]
+layout_mode = 0
+offset_left = 494.0
+offset_top = 34.0
+offset_right = 641.0
+offset_bottom = 73.0
+text = "TIEMPO: 0:0"
+
+[node name="VBoxContainer" type="HBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 1029.0
+offset_top = 475.0
+offset_right = 1319.0
+offset_bottom = 635.0
+
+[node name="ClearButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "Clear
+"
+
+[node name="FinishButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "Finish"
+
+[connection signal="pressed" from="VBoxContainer/ClearButton" to="." method="_on_ClearButton_pressed"]
+[connection signal="pressed" from="VBoxContainer/FinishButton" to="." method="_on_FinishButton_pressed"]

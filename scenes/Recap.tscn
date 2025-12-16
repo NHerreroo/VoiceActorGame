@@ -1,0 +1,21 @@
+[gd_scene load_steps=2 format=3 uid="uid://sw42hna468x5"]
+
+[ext_resource type="Script" uid="uid://b8xdk4th8cfbq" path="res://scripts/recap.gd" id="1_f238v"]
+
+[node name="Recap" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_f238v")
+
+[node name="RecapLabel" type="Label" parent="."]
+layout_mode = 0
+offset_left = 537.0
+offset_top = 101.0
+offset_right = 685.0
+offset_bottom = 179.0
+text = "Recap
+"
