@@ -259,6 +259,10 @@ func host_player_finished_voice(player_id: int):
 func check_if_all_finished_voice():
 	if GameManager.voice_finished_players.size() >= get_total_players():
 		print("TODOS TERMINARON LA RONDA DE VOZ")
+		
+		# Configurar el Recap antes de enviar a todos
+		GameManager.setup_recap()
+		
 		# Enviar a todos los jugadores al recap
 		rpc("start_recap")
 

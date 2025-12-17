@@ -9,8 +9,6 @@ var room_code := ""
 
 var finished_players := []
 var drawings_submitted := []  # IDs de jugadores que ya enviaron dibujos
-
-# Nueva variable para la ronda de voz
 var voice_finished_players := []  # IDs de jugadores que terminaron la ronda de voz
 
 var players := {}      # peer_id -> name
@@ -21,17 +19,48 @@ var voice_assignments := {}
 var current_drawing_index := 0
 var drawings_to_record := []  # IDs de los dibujos que este jugador debe grabar
 
+# NUEVO: Variables para sincronizar el Recap
+var recap_current_drawing_index := 0
+var recap_drawing_ids := []  # Orden de los dibujos en el Recap
+
 func reset_game():
 	drawings.clear()
 	voices.clear()
 	drawings_submitted.clear()
-	voice_finished_players.clear()  # AÑADIDO
-	current_drawing_index = 0
-	drawings_to_record.clear()
-
-func reset_voice_phase():  # NUEVA FUNCIÓN
 	voice_finished_players.clear()
 	current_drawing_index = 0
+	drawings_to_record.clear()
+	
+	# Resetear variables del Recap
+	recap_current_drawing_index = 0
+	recap_drawing_ids.clear()
+
+func reset_voice_phase():
+	voice_finished_players.clear()
+	current_drawing_index = 0
+
+# NUEVA: Inicializar el orden de los dibujos en el Recap
+func setup_recap():
+	recap_drawing_ids = drawings.keys()
+	recap_current_drawing_index = 0
+	print("Recap configurado con ", recap_drawing_ids.size(), " dibujos")
+
+# NUEVA: Obtener el dibujo actual del Recap
+func get_current_recap_drawing_id() -> int:
+	if recap_drawing_ids.size() == 0:
+		return -1
+	if recap_current_drawing_index >= recap_drawing_ids.size():
+		return -1
+	return recap_drawing_ids[recap_current_drawing_index]
+
+# NUEVA: Avanzar al siguiente dibujo en el Recap
+func next_recap_drawing() -> bool:
+	recap_current_drawing_index += 1
+	return recap_current_drawing_index < recap_drawing_ids.size()
+
+# NUEVA: Verificar si hay más dibujos en el Recap
+func has_more_recap_drawings() -> bool:
+	return recap_current_drawing_index < recap_drawing_ids.size()
 
 # Guardar dibujo localmente
 func save_local_drawing(image_data: PackedByteArray):
@@ -73,8 +102,6 @@ func next_drawing() -> bool:
 func has_more_drawings() -> bool:
 	return current_drawing_index < drawings_to_record.size()
 
-# En GameManager.gd, añade estas funciones:
-
 # Guardar audio localmente
 func save_local_voice(drawing_id: int, audio_data: PackedByteArray):
 	voices[drawing_id] = audio_data
@@ -93,12 +120,3 @@ func add_voice_assignment(drawing_id: int, voice_owner_id: int):
 
 func get_voices_for_drawing(drawing_id: int) -> Array:
 	return voice_assignments.get(drawing_id, [])
-
-# En la función submit_voice (en voice_round.gd), añadir:
-func submit_voice(drawing_id: int, sender_id: int, audio_data: PackedByteArray):
-	if not GameManager.is_host:
-		return
-	
-	print("HOST: Recibida voz para dibujo ", drawing_id, " de jugador ", sender_id)
-	GameManager.voices[drawing_id] = audio_data
-	GameManager.add_voice_assignment(drawing_id, sender_id)  # AÑADE ESTA LÍNEA
