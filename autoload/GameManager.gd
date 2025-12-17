@@ -21,12 +21,6 @@ var voice_assignments := {}
 var current_drawing_index := 0
 var drawings_to_record := []  # IDs de los dibujos que este jugador debe grabar
 
-# Añade estas variables al GameManager.gd:
-var current_recap_drawing_index := 0
-var current_recap_voice_index := 0
-var recap_ratings := {}  # drawing_id -> {voice_owner_id -> {rater_id -> rating}}
-var recap_finished := false
-
 func reset_game():
 	drawings.clear()
 	voices.clear()
@@ -108,81 +102,3 @@ func submit_voice(drawing_id: int, sender_id: int, audio_data: PackedByteArray):
 	print("HOST: Recibida voz para dibujo ", drawing_id, " de jugador ", sender_id)
 	GameManager.voices[drawing_id] = audio_data
 	GameManager.add_voice_assignment(drawing_id, sender_id)  # AÑADE ESTA LÍNEA
-
-
-
-# Añade estas funciones al GameManager.gd:
-func reset_recap():
-	current_recap_drawing_index = 0
-	current_recap_voice_index = 0
-	recap_ratings.clear()
-	recap_finished = false
-
-func get_current_recap_drawing_id() -> int:
-	var drawing_ids = drawings.keys()
-	if drawing_ids.size() == 0 or current_recap_drawing_index >= drawing_ids.size():
-		return -1
-	drawing_ids.sort()  # Para consistencia entre todos los clientes
-	return drawing_ids[current_recap_drawing_index]
-
-func get_current_recap_voice_owner_id() -> int:
-	var drawing_id = get_current_recap_drawing_id()
-	if drawing_id == -1:
-		return -1
-	
-	# Obtener todos los jugadores excepto el autor del dibujo
-	var all_players = players.keys()
-	var voice_players = []
-	
-	for player_id in all_players:
-		if player_id != drawing_id:
-			voice_players.append(player_id)
-	
-	voice_players.sort()  # Para consistencia
-	if current_recap_voice_index >= voice_players.size():
-		return -1
-	
-	return voice_players[current_recap_voice_index]
-
-func submit_rating(rater_id: int, drawing_id: int, voice_owner_id: int, rating: int):
-	if not recap_ratings.has(drawing_id):
-		recap_ratings[drawing_id] = {}
-	
-	if not recap_ratings[drawing_id].has(voice_owner_id):
-		recap_ratings[drawing_id][voice_owner_id] = {}
-	
-	recap_ratings[drawing_id][voice_owner_id][rater_id] = rating
-	print("Rating enviado: ", rater_id, " -> ", voice_owner_id, " = ", rating)
-
-func next_recap_item() -> bool:
-	var drawing_ids = drawings.keys()
-	if drawing_ids.size() == 0:
-		return false
-	
-	drawing_ids.sort()
-	var drawing_id = drawing_ids[current_recap_drawing_index]
-	
-	# Obtener jugadores para esta voz
-	var all_players = players.keys()
-	var voice_players = []
-	
-	for player_id in all_players:
-		if player_id != drawing_id:
-			voice_players.append(player_id)
-	
-	voice_players.sort()
-	
-	# Avanzar índice de voz
-	current_recap_voice_index += 1
-	
-	# Si hemos pasado todas las voces de este dibujo, avanzar al siguiente dibujo
-	if current_recap_voice_index >= voice_players.size():
-		current_recap_drawing_index += 1
-		current_recap_voice_index = 0
-		
-		# Verificar si hemos terminado todos los dibujos
-		if current_recap_drawing_index >= drawing_ids.size():
-			recap_finished = true
-			return false
-	
-	return true
