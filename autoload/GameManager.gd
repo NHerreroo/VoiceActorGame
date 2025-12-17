@@ -13,15 +13,19 @@ var voice_finished_players := []  # IDs de jugadores que terminaron la ronda de 
 
 var players := {}      # peer_id -> name
 var drawings := {}     # peer_id -> PackedByteArray (datos PNG)
-var voices := {}       # drawing_id -> PackedByteArray (datos de audio)
+
+# MODIFICADO: Ahora guardamos múltiples voces por dibujo
+# Estructura: voices[drawing_id][voice_owner_id] = audio_data
+var voices := {}       # drawing_id -> {voice_owner_id -> audio_data}
 var voice_assignments := {}
 
 var current_drawing_index := 0
 var drawings_to_record := []  # IDs de los dibujos que este jugador debe grabar
 
-# NUEVO: Variables para sincronizar el Recap
+# Variables para sincronizar el Recap
 var recap_current_drawing_index := 0
 var recap_drawing_ids := []  # Orden de los dibujos en el Recap
+var recap_current_voice_index := 0  # Índice de voz actual en el Recap
 
 func reset_game():
 	drawings.clear()
@@ -34,18 +38,20 @@ func reset_game():
 	# Resetear variables del Recap
 	recap_current_drawing_index = 0
 	recap_drawing_ids.clear()
+	recap_current_voice_index = 0
 
 func reset_voice_phase():
 	voice_finished_players.clear()
 	current_drawing_index = 0
 
-# NUEVA: Inicializar el orden de los dibujos en el Recap
+# Inicializar el orden de los dibujos en el Recap
 func setup_recap():
 	recap_drawing_ids = drawings.keys()
 	recap_current_drawing_index = 0
+	recap_current_voice_index = 0
 	print("Recap configurado con ", recap_drawing_ids.size(), " dibujos")
 
-# NUEVA: Obtener el dibujo actual del Recap
+# Obtener el dibujo actual del Recap
 func get_current_recap_drawing_id() -> int:
 	if recap_drawing_ids.size() == 0:
 		return -1
@@ -53,14 +59,58 @@ func get_current_recap_drawing_id() -> int:
 		return -1
 	return recap_drawing_ids[recap_current_drawing_index]
 
-# NUEVA: Avanzar al siguiente dibujo en el Recap
+# Obtener la voz actual del Recap
+func get_current_recap_voice_owner_id() -> int:
+	var drawing_id = get_current_recap_drawing_id()
+	if drawing_id == -1:
+		return -1
+	
+	var voice_owners = get_voice_owners_for_drawing(drawing_id)
+	if voice_owners.size() == 0:
+		return -1
+	
+	if recap_current_voice_index >= voice_owners.size():
+		return -1
+	
+	return voice_owners[recap_current_voice_index]
+
+# Avanzar al siguiente dibujo en el Recap
 func next_recap_drawing() -> bool:
 	recap_current_drawing_index += 1
+	recap_current_voice_index = 0
 	return recap_current_drawing_index < recap_drawing_ids.size()
 
-# NUEVA: Verificar si hay más dibujos en el Recap
+# Avanzar a la siguiente voz en el Recap
+func next_recap_voice() -> bool:
+	var drawing_id = get_current_recap_drawing_id()
+	if drawing_id == -1:
+		return false
+	
+	var voice_owners = get_voice_owners_for_drawing(drawing_id)
+	if voice_owners.size() == 0:
+		return false
+	
+	recap_current_voice_index += 1
+	if recap_current_voice_index >= voice_owners.size():
+		return false
+	
+	return true
+
+# Verificar si hay más dibujos en el Recap
 func has_more_recap_drawings() -> bool:
 	return recap_current_drawing_index < recap_drawing_ids.size()
+
+# Verificar si hay más voces en el dibujo actual
+func has_more_recap_voices() -> bool:
+	var drawing_id = get_current_recap_drawing_id()
+	if drawing_id == -1:
+		return false
+	
+	var voice_owners = get_voice_owners_for_drawing(drawing_id)
+	if voice_owners.size() == 0:
+		return false
+	
+	return recap_current_voice_index < voice_owners.size() - 1
 
 # Guardar dibujo localmente
 func save_local_drawing(image_data: PackedByteArray):
@@ -102,14 +152,41 @@ func next_drawing() -> bool:
 func has_more_drawings() -> bool:
 	return current_drawing_index < drawings_to_record.size()
 
-# Guardar audio localmente
+# MODIFICADO: Guardar audio localmente para un dibujo específico
 func save_local_voice(drawing_id: int, audio_data: PackedByteArray):
-	voices[drawing_id] = audio_data
-	print("Audio guardado para dibujo ", drawing_id, " (", audio_data.size(), " bytes)")
+	var my_id = multiplayer.get_unique_id()
+	
+	# Inicializar la estructura si no existe
+	if not voices.has(drawing_id):
+		voices[drawing_id] = {}
+	
+	# Guardar el audio con el ID del jugador que lo grabó
+	voices[drawing_id][my_id] = audio_data
+	print("Audio guardado para dibujo ", drawing_id, " de jugador ", my_id, " (", audio_data.size(), " bytes)")
 
-# Obtener el audio de un dibujo específico
-func get_voice_for_drawing(drawing_id: int) -> PackedByteArray:
-	return voices.get(drawing_id, PackedByteArray())
+# NUEVO: Obtener el audio de un dibujo grabado por un jugador específico
+func get_voice_for_drawing_by_player(drawing_id: int, player_id: int) -> PackedByteArray:
+	if not voices.has(drawing_id):
+		return PackedByteArray()
+	
+	return voices[drawing_id].get(player_id, PackedByteArray())
+
+# NUEVO: Obtener todos los jugadores que grabaron voz para un dibujo
+func get_voice_owners_for_drawing(drawing_id: int) -> Array:
+	if not voices.has(drawing_id):
+		return []
+	
+	return voices[drawing_id].keys()
+
+# NUEVO: Obtener el audio actual del Recap
+func get_current_recap_voice() -> PackedByteArray:
+	var drawing_id = get_current_recap_drawing_id()
+	var voice_owner_id = get_current_recap_voice_owner_id()
+	
+	if drawing_id == -1 or voice_owner_id == -1:
+		return PackedByteArray()
+	
+	return get_voice_for_drawing_by_player(drawing_id, voice_owner_id)
 
 func add_voice_assignment(drawing_id: int, voice_owner_id: int):
 	if not voice_assignments.has(drawing_id):

@@ -13,12 +13,11 @@ extends Control
 @onready var audio_player: AudioStreamPlayer = $AudioStreamPlayer
 @onready var status_label: Label = $StatusLabel
 
-var current_voice_index := 0
 var voice_ratings := {}  # drawing_id -> {voice_owner_id -> rating}
 var player_ratings := {} # voice_owner_id -> total_score
 var current_rating := 0
-var voice_players_for_current_drawing := []
 var waiting_for_host := false
+var voice_players_for_current_drawing := []
 
 func _ready():
 	print("Recap cargado - Esperando nodos...")
@@ -54,7 +53,7 @@ func setup_rating_buttons():
 		if button:
 			button.pressed.connect(_on_rating_button_pressed.bind(i))
 
-# NUEVO: Función para mostrar el dibujo actual (llamada por RPC)
+# Función para mostrar el dibujo actual
 func show_current_drawing():
 	var drawing_id = GameManager.get_current_recap_drawing_id()
 	
@@ -63,8 +62,9 @@ func show_current_drawing():
 		current_drawing_info.text = "No hay datos"
 		return
 	
-	current_voice_index = 0
 	current_rating = 0
+	selected_rating_label.text = "Seleccionado: -"
+	update_rating_buttons()
 	
 	print("Mostrando dibujo de jugador ", drawing_id)
 	
@@ -94,7 +94,7 @@ func show_current_drawing():
 		print("No hay datos de imagen para el dibujo ", drawing_id)
 		status_label.text = "No hay imagen disponible"
 	
-	# Actualizar lista de jugadores que grabaron voz
+	# Obtener lista de jugadores que grabaron voz para este dibujo
 	update_voice_players_for_current_drawing()
 	
 	# Mostrar la primera voz para este dibujo
@@ -105,13 +105,17 @@ func show_current_drawing():
 	waiting_for_host = false
 	status_label.text = "Mostrando dibujo actual"
 
-# NUEVO: Función para que el host muestre el dibujo a todos
+# Función para que el host muestre el dibujo a todos
 func show_current_drawing_to_all():
 	if not GameManager.is_host:
 		return
 	
 	var drawing_id = GameManager.get_current_recap_drawing_id()
 	if drawing_id != -1:
+		# Obtener lista de voces para este dibujo
+		var voice_owners = GameManager.get_voice_owners_for_drawing(drawing_id)
+		print("Mostrando dibujo ", drawing_id, " con ", voice_owners.size(), " voces")
+		
 		# Enviar a todos los jugadores
 		rpc("show_drawing_rpc", drawing_id)
 		# Mostrar localmente también
@@ -134,7 +138,7 @@ func show_drawing_rpc(drawing_id: int):
 				
 				current_drawing_info.text = "Dibujo de Jugador " + str(drawing_id)
 				
-				# Actualizar UI
+				# Actualizar lista de voces
 				update_voice_players_for_current_drawing()
 				show_current_voice()
 				
@@ -146,101 +150,91 @@ func update_voice_players_for_current_drawing():
 	if drawing_id == -1:
 		return
 	
-	voice_players_for_current_drawing.clear()
-	
-	# Obtener todos los jugadores
-	var all_players = GameManager.players.keys()
-	print("Todos los jugadores: ", all_players)
-	
-	for player_id in all_players:
-		if player_id != drawing_id:  # Excluir al autor del dibujo
-			# Para simplificar, asumimos que todos los otros jugadores grabaron voz
-			voice_players_for_current_drawing.append(player_id)
-	
+	voice_players_for_current_drawing = GameManager.get_voice_owners_for_drawing(drawing_id)
 	print("Voces disponibles para dibujo ", drawing_id, ": ", voice_players_for_current_drawing)
 
 func show_current_voice():
-	if voice_players_for_current_drawing.size() == 0:
+	var voice_owner_id = GameManager.get_current_recap_voice_owner_id()
+	
+	if voice_owner_id == -1:
 		voice_info_label.text = "No hay voces para este dibujo"
 		replay_button.disabled = true
 		next_voice_button.disabled = true
 		return
 	
-	if current_voice_index < voice_players_for_current_drawing.size():
-		var voice_player_id = voice_players_for_current_drawing[current_voice_index]
-		voice_info_label.text = "Voz de Jugador " + str(voice_player_id)
-		
-		# Actualizar estado de botones
-		replay_button.disabled = false
-		next_voice_button.disabled = (current_voice_index >= voice_players_for_current_drawing.size() - 1)
-		
-		# Verificar si ya hay un rating para esta voz
-		var drawing_id = GameManager.get_current_recap_drawing_id()
-		var existing_rating = voice_ratings.get(drawing_id, {}).get(voice_player_id, 0)
-		
-		if existing_rating > 0:
-			current_rating = existing_rating
-			selected_rating_label.text = "Seleccionado: " + str(current_rating)
-		else:
-			current_rating = 0
-			selected_rating_label.text = "Seleccionado: -"
-		
-		# Actualizar botones de rating
-		update_rating_buttons()
+	voice_info_label.text = "Voz de Jugador " + str(voice_owner_id)
+	
+	# Actualizar estado de botones
+	replay_button.disabled = false
+	next_voice_button.disabled = not GameManager.has_more_recap_voices()
+	
+	# Verificar si ya hay un rating para esta voz
+	var drawing_id = GameManager.get_current_recap_drawing_id()
+	var existing_rating = voice_ratings.get(drawing_id, {}).get(voice_owner_id, 0)
+	
+	if existing_rating > 0:
+		current_rating = existing_rating
+		selected_rating_label.text = "Seleccionado: " + str(current_rating)
 	else:
-		voice_info_label.text = "Todas las voces revisadas"
-		next_voice_button.disabled = true
+		current_rating = 0
+		selected_rating_label.text = "Seleccionado: -"
+	
+	# Actualizar botones de rating
+	update_rating_buttons()
 
 func play_current_voice():
-	if voice_players_for_current_drawing.size() == 0:
-		status_label.text = "No hay voces para reproducir"
-		return
+	var voice_data = GameManager.get_current_recap_voice()
 	
-	if current_voice_index >= voice_players_for_current_drawing.size():
+	if voice_data.size() == 0:
+		status_label.text = "No hay audio para reproducir"
 		return
 	
 	# Detener cualquier reproducción en curso
 	if audio_player.playing:
 		audio_player.stop()
 	
-	var drawing_id = GameManager.get_current_recap_drawing_id()
+	# Crear stream de audio
+	var audio_stream = AudioStreamWAV.new()
+	audio_stream.data = voice_data
+	audio_stream.format = AudioStreamWAV.FORMAT_16_BITS
+	audio_stream.mix_rate = 44100
+	audio_stream.stereo = true
 	
-	# En el sistema actual, las voces se guardan con la clave del drawing_id
-	var voice_data = GameManager.voices.get(drawing_id)
+	# Reproducir
+	audio_player.stream = audio_stream
+	audio_player.play()
 	
-	if voice_data and voice_data.size() > 0:
-		# Crear stream de audio
-		var audio_stream = AudioStreamWAV.new()
-		audio_stream.data = voice_data
-		audio_stream.format = AudioStreamWAV.FORMAT_16_BITS
-		audio_stream.mix_rate = 44100
-		audio_stream.stereo = true
-		
-		# Reproducir
-		audio_player.stream = audio_stream
-		audio_player.play()
-		
-		status_label.text = "Reproduciendo audio..."
-		
-		# Esperar a que termine
-		await audio_player.finished
-		status_label.text = "Audio terminado"
-	else:
-		status_label.text = "No hay audio para reproducir"
+	var voice_owner_id = GameManager.get_current_recap_voice_owner_id()
+	status_label.text = "Reproduciendo voz de Jugador " + str(voice_owner_id) + "..."
+	
+	# Esperar a que termine
+	await audio_player.finished
+	status_label.text = "Audio terminado"
 
 func _on_replay_button_pressed():
 	play_current_voice()
 
 func _on_next_voice_button_pressed():
+	if not GameManager.is_host:
+		return
+	
 	# Guardar rating actual si existe
 	save_current_rating()
 	
 	# Pasar a la siguiente voz
-	current_voice_index += 1
+	if GameManager.next_recap_voice():
+		# Enviar a todos los jugadores
+		rpc("show_next_voice_rpc")
+		# Mostrar localmente
+		show_current_voice()
+		# Reproducir automáticamente
+		play_current_voice()
+	else:
+		print("No hay más voces para este dibujo")
+
+@rpc("any_peer", "call_local")
+func show_next_voice_rpc():
 	show_current_voice()
-	
-	# Reproducir automáticamente
-	play_current_voice()
 
 func _on_rating_button_pressed(rating: int):
 	current_rating = rating
@@ -263,25 +257,26 @@ func update_rating_buttons():
 			button.button_pressed = true
 
 func save_current_rating():
-	if current_rating > 0 and current_voice_index < voice_players_for_current_drawing.size():
+	if current_rating > 0:
 		var drawing_id = GameManager.get_current_recap_drawing_id()
-		var voice_player_id = voice_players_for_current_drawing[current_voice_index]
+		var voice_owner_id = GameManager.get_current_recap_voice_owner_id()
 		
-		# Inicializar estructura si no existe
-		if not voice_ratings.has(drawing_id):
-			voice_ratings[drawing_id] = {}
-		
-		# Guardar rating
-		voice_ratings[drawing_id][voice_player_id] = current_rating
-		
-		# Actualizar puntuación total del jugador
-		if not player_ratings.has(voice_player_id):
-			player_ratings[voice_player_id] = 0
-		player_ratings[voice_player_id] += current_rating
-		
-		print("Rating guardado: ", current_rating, " para voz de jugador ", voice_player_id)
+		if drawing_id != -1 and voice_owner_id != -1:
+			# Inicializar estructura si no existe
+			if not voice_ratings.has(drawing_id):
+				voice_ratings[drawing_id] = {}
+			
+			# Guardar rating
+			voice_ratings[drawing_id][voice_owner_id] = current_rating
+			
+			# Actualizar puntuación total del jugador
+			if not player_ratings.has(voice_owner_id):
+				player_ratings[voice_owner_id] = 0
+			player_ratings[voice_owner_id] += current_rating
+			
+			print("Rating guardado: ", current_rating, " para voz de jugador ", voice_owner_id)
 
-# MODIFICADO: Ahora el host controla el cambio de dibujo
+# Ahora el host controla el cambio de dibujo
 func _on_next_drawing_button_pressed():
 	if not GameManager.is_host:
 		return
@@ -297,7 +292,7 @@ func _on_next_drawing_button_pressed():
 		# Todos los dibujos revisados, mostrar resultados
 		show_final_results_to_all()
 
-# NUEVO: Mostrar resultados finales a todos
+# Mostrar resultados finales a todos
 func show_final_results_to_all():
 	if not GameManager.is_host:
 		return

@@ -196,8 +196,8 @@ func save_voice_for_drawing(drawing_id: int):
 		current_audio_data = create_silent_audio()
 	
 	# Guardar localmente
-	GameManager.voices[drawing_id] = current_audio_data
-	print("Voz guardada localmente para dibujo de jugador ", drawing_id, " (", current_audio_data.size(), " bytes)")
+	GameManager.save_local_voice(drawing_id, current_audio_data)
+	print("Voz guardada localmente para dibujo de jugador ", drawing_id)
 	
 	# Enviar al host
 	var my_id = multiplayer.get_unique_id()
@@ -234,7 +234,13 @@ func submit_voice(drawing_id: int, sender_id: int, audio_data: PackedByteArray):
 		return
 	
 	print("HOST: Recibida voz para dibujo ", drawing_id, " de jugador ", sender_id)
-	GameManager.voices[drawing_id] = audio_data
+	
+	# Inicializar la estructura si no existe
+	if not GameManager.voices.has(drawing_id):
+		GameManager.voices[drawing_id] = {}
+	
+	# Guardar el audio con el ID del jugador que lo envió
+	GameManager.voices[drawing_id][sender_id] = audio_data
 
 @rpc("any_peer")
 func player_finished_voice(player_id: int):
