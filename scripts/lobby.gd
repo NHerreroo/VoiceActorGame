@@ -19,44 +19,28 @@ func _ready():
 	# Ocultar botón de inicio (solo visible para host)
 	start_button.visible = false
 	
-	# Configurar sistema de audio
-	_setup_audio_system()
+	# Configurar sistema de audio usando GameManager
+	GameManager.setup_audio_system()
 	
 	# Cargar lista de micrófonos disponibles
 	_refresh_microphone_list()
 	
 	print("Lobby listo. ID del jugador: ", multiplayer.get_unique_id())
 
+# FILE: scripts/lobby.gd - MÉTODO _setup_audio_system CORREGIDO
 func _setup_audio_system():
-	print("Configurando sistema de audio...")
+	# Ya no necesitamos configurar el audio aquí, se hace en GameManager
+	print("Audio configurado por GameManager")
 	
-	# Conectar señal de finalización de reproducción
-	if audio_player:
-		audio_player.finished.connect(_on_test_playback_finished)
-		print("✓ AudioPlayer conectado")
-	else:
-		print("✗ ERROR: AudioPlayer no encontrado")
-	
-	# Crear efecto de grabación
-	audio_effect_record = AudioEffectRecord.new()
-	
-	# Configurar bus de audio para grabación
-	var bus_idx = AudioServer.get_bus_index("Record")
-	if bus_idx == -1:
-		print("Creando nuevo bus de grabación...")
-		AudioServer.add_bus(1)
-		bus_idx = AudioServer.get_bus_count() - 1
-		AudioServer.set_bus_name(bus_idx, "Record")
-		print("✓ Bus de grabación creado con índice: ", bus_idx)
-	
-	# Añadir efecto de grabación al bus
-	AudioServer.add_bus_effect(bus_idx, audio_effect_record)
-	AudioServer.set_bus_mute(bus_idx, false)
-	
-	# Conectar el bus de entrada (bus 0) al bus de grabación
-	AudioServer.set_bus_send(0, "Record")
-	
-	print("✓ Sistema de audio configurado")
+func _debug_audio_status():
+	print("=== DEBUG: ESTADO DEL AUDIO ===")
+	print("  - Bus count: ", AudioServer.get_bus_count())
+	for i in range(AudioServer.get_bus_count()):
+		print("  - Bus ", i, ": ", AudioServer.get_bus_name(i))
+	print("  - Input device list: ", AudioServer.get_input_device_list())
+	print("  - Current input device: ", AudioServer.get_input_device())
+	print("  - Current output device: ", AudioServer.get_output_device())
+	print("=== FIN DEBUG ===")
 
 func _refresh_microphone_list():
 	print("Refrescando lista de micrófonos...")
@@ -139,56 +123,61 @@ func _start_test_recording():
 	
 	print("Iniciando grabación de prueba...")
 	
-	# Activar grabación
-	audio_effect_record.set_recording_active(true)
-	
-	# Temporizador para grabar durante el tiempo especificado
-	await get_tree().create_timer(test_record_time).timeout
-	
-	# Si aún está grabando (no se canceló manualmente), detener
-	if test_recording:
-		print("Tiempo de grabación completado")
-		_stop_test_recording()
+	# Activar grabación usando GameManager
+	if GameManager.start_recording():
+		# Temporizador para grabar durante el tiempo especificado
+		await get_tree().create_timer(test_record_time).timeout
+		
+		# Si aún está grabando (no se canceló manualmente), detener
+		if test_recording:
+			print("Tiempo de grabación completado")
+			_stop_test_recording()
 
+
+# En lobby.gd, modifica _stop_test_recording:
 func _stop_test_recording():
 	print("Deteniendo grabación de prueba...")
 	
-	# Desactivar grabación
-	audio_effect_record.set_recording_active(false)
+	# Desactivar grabación usando GameManager
+	var recording = await GameManager.stop_recording()
 	test_recording = false
 	
 	# Actualizar interfaz
 	test_mic_button.text = "🎤 Probar Micrófono"
 	test_status.text = "⏳ Procesando grabación..."
 	
-	# Obtener la grabación
-	recording = audio_effect_record.get_recording()
-	
 	if recording and recording.data.size() > 0:
 		print("✓ Grabación obtenida: ", recording.data.size(), " bytes")
 		
-		# Configurar parámetros del audio
-		recording.mix_rate = 44100  # 44.1 kHz
-		recording.stereo = false    # Mono
-		recording.format = AudioStreamWAV.FORMAT_16_BITS
-		
 		# Reproducir la grabación
-		_play_test_recording()
+		_play_test_recording(recording)
 	else:
 		print("✗ No se grabó audio o los datos están vacíos")
 		test_status.text = "❌ No se detectó audio. Verifica tu micrófono."
 		await get_tree().create_timer(3.0).timeout
 		test_status.visible = false
 
-func _play_test_recording():
+func _play_test_recording(recording: AudioStreamWAV):
 	print("Reproduciendo grabación de prueba...")
 	
 	if not recording or recording.data.size() == 0:
 		print("✗ No hay grabación para reproducir")
 		return
 	
+	# Crear un nuevo AudioStreamPlayer para la prueba
+	if not audio_player:
+		audio_player = AudioStreamPlayer.new()
+		add_child(audio_player)
+	
 	# Configurar y reproducir
 	audio_player.stream = recording
+	audio_player.volume_db = 0.0
+	audio_player.bus = "Master"  # Usar el bus Master directamente
+	
+	# Detener cualquier reproducción anterior
+	if audio_player.playing:
+		audio_player.stop()
+	
 	audio_player.play()
 	
 	test_status.text = "▶️ Reproduciendo..."
@@ -272,3 +261,15 @@ func start_draw_phase():
 	get_tree().change_scene_to_file("res://scenes/DrawingRound.tscn")
 	
 	print("✓ Escena cambiada a DrawingRound")
+	
+func _ensure_playback_bus():
+	var playback_bus_idx = AudioServer.get_bus_index("VoicePlayback")
+	if playback_bus_idx == -1:
+		print("Creando bus VoicePlayback...")
+		AudioServer.add_bus(1)
+		playback_bus_idx = AudioServer.get_bus_count() - 1
+		AudioServer.set_bus_name(playback_bus_idx, "VoicePlayback")
+		AudioServer.set_bus_mute(playback_bus_idx, false)
+		AudioServer.set_bus_volume_db(playback_bus_idx, 0.0)
+	return playback_bus_idx
+	

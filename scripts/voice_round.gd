@@ -12,7 +12,6 @@ extends Control
 @onready var audio_player: AudioStreamPlayer = $AudioPlayer
 
 # Variables de audio
-var audio_effect_record: AudioEffectRecord
 var is_recording := false
 var recording_time := 0
 var max_recording_time := 10
@@ -20,25 +19,46 @@ var voice_finished := false
 
 # Datos de la grabación actual
 var current_audio_data: PackedByteArray
-var current_recording: AudioStreamWAV
 
 func _ready():
 	print("=== VOICE ROUND INICIADO ===")
 	print("  - Jugador ID: ", multiplayer.get_unique_id())
 	print("  - Es host: ", GameManager.is_host)
 	
-	# Configurar sistema de audio
-	_setup_audio_system()
+	# Verificar dispositivos de audio
+	print("Verificando dispositivos de audio...")
+	var input_devices = AudioServer.get_input_device_list()
+	print("  - Dispositivos de entrada disponibles: ", input_devices)
+	print("  - Dispositivo actual: ", AudioServer.get_input_device())
+	print("  - Dispositivo de salida actual: ", AudioServer.get_output_device())
+	
+	# Verificar buses de audio
+	print("Verificando buses de audio...")
+	for i in range(AudioServer.get_bus_count()):
+		print("  - Bus ", i, ": ", AudioServer.get_bus_name(i))
 	
 	# Configurar micrófono
-	AudioServer.set_input_device(GameManager.selected_mic)
-	mic_info.text = "Mic: " + GameManager.selected_mic
-	print("  - Micrófono seleccionado: ", GameManager.selected_mic)
+	if GameManager.selected_mic != "":
+		AudioServer.set_input_device(GameManager.selected_mic)
+		print("  - Micrófono configurado: ", GameManager.selected_mic)
+		mic_info.text = "Mic: " + GameManager.selected_mic
+	else:
+		# Si no hay micrófono seleccionado, usar el primero disponible
+		var mics = AudioServer.get_input_device_list()
+		if mics.size() > 0:
+			GameManager.selected_mic = mics[0]
+			AudioServer.set_input_device(GameManager.selected_mic)
+			mic_info.text = "Mic: " + GameManager.selected_mic
+			print("  - Micrófono automático seleccionado: ", GameManager.selected_mic)
 	
-	# Resetear estado de voz
-	voice_finished = false
-	current_audio_data = PackedByteArray()
-	current_recording = null
+	# Asegurar que GameManager tiene el sistema de audio configurado
+	if not GameManager.audio_effect_record:
+		GameManager.setup_audio_system()
+	
+	# Configurar audio player
+	audio_player.bus = "Master"
+	audio_player.volume_db = 0.0
+	audio_player.finished.connect(_on_playback_finished)
 	
 	# Configurar UI inicial
 	record_button.visible = true
@@ -58,37 +78,6 @@ func _ready():
 	
 	print("✓ Voice Round listo")
 
-func _setup_audio_system():
-	print("Configurando sistema de audio para Voice Round...")
-	
-	# Conectar señal de finalización de reproducción
-	if audio_player:
-		audio_player.finished.connect(_on_playback_finished)
-		print("✓ AudioPlayer conectado")
-	else:
-		print("✗ ERROR: AudioPlayer no encontrado")
-	
-	# Crear efecto de grabación
-	audio_effect_record = AudioEffectRecord.new()
-	
-	# Configurar bus de audio para grabación
-	var bus_idx = AudioServer.get_bus_index("VoiceRecord")
-	if bus_idx == -1:
-		print("Creando nuevo bus de grabación para voz...")
-		AudioServer.add_bus(1)
-		bus_idx = AudioServer.get_bus_count() - 1
-		AudioServer.set_bus_name(bus_idx, "VoiceRecord")
-		print("✓ Bus de grabación creado con índice: ", bus_idx)
-	
-	# Añadir efecto de grabación al bus
-	AudioServer.add_bus_effect(bus_idx, audio_effect_record)
-	AudioServer.set_bus_mute(bus_idx, false)
-	
-	# Conectar el bus de entrada (bus 0) al bus de grabación
-	AudioServer.set_bus_send(0, "VoiceRecord")
-	
-	print("✓ Sistema de audio configurado para Voice Round")
-
 func show_next_drawing():
 	print("Mostrando siguiente dibujo...")
 	
@@ -98,11 +87,9 @@ func show_next_drawing():
 		
 		print("  - Dibujo actual: ", GameManager.current_drawing_index + 1, " de ", GameManager.drawings_to_record.size())
 		print("  - ID del jugador del dibujo: ", player_id)
-		print("  - Tamaño de datos de imagen: ", image_data.size(), " bytes")
 		
 		# Limpiar grabación anterior
 		current_audio_data = PackedByteArray()
-		current_recording = null
 		
 		# Verificar que tenemos datos válidos
 		if image_data != null and image_data.size() > 0:
@@ -120,7 +107,6 @@ func show_next_drawing():
 								"Dibujo " + str(GameManager.current_drawing_index + 1) + " de " + str(GameManager.drawings_to_record.size())
 				
 				print("✓ Dibujo cargado correctamente")
-				print("  - Tamaño de imagen: ", image.get_size())
 				
 			else:
 				info_label.text = "❌ Error cargando dibujo\nCódigo: " + str(error)
@@ -136,10 +122,6 @@ func show_next_drawing():
 		drawing_texture.visible = false
 		print("✓ Todos los dibujos han sido procesados")
 
-func _on_RecordButton_pressed():
-	print("Botón Grabar presionado")
-	start_recording()
-
 func start_recording():
 	if is_recording:
 		print("⚠ Ya se está grabando")
@@ -148,55 +130,51 @@ func start_recording():
 	print("Iniciando grabación de voz...")
 	
 	# Configurar dispositivo de micrófono
-	AudioServer.set_input_device(GameManager.selected_mic)
-	print("  - Micrófono configurado: ", GameManager.selected_mic)
+	if GameManager.selected_mic != "":
+		AudioServer.set_input_device(GameManager.selected_mic)
+		print("  - Micrófono configurado: ", GameManager.selected_mic)
 	
-	# Activar grabación
-	audio_effect_record.set_recording_active(true)
-	
-	is_recording = true
-	recording_time = 0
-	
-	# Actualizar UI
-	record_button.visible = false
-	stop_button.visible = true
-	play_button.visible = false
-	play_button.disabled = true
-	confirm_button.disabled = true
-	
-	info_label.text = "🎤 GRABANDO... Habla ahora!\n\n" + \
-					"Dibujo " + str(GameManager.current_drawing_index + 1) + " de " + str(GameManager.drawings_to_record.size())
-	
-	timer_label.text = "Tiempo: 0s / " + str(max_recording_time) + "s"
-	
-	print("✓ Grabación iniciada")
-	
-	# Iniciar temporizador
-	_update_timer()
+	# Activar grabación usando GameManager
+	if GameManager.start_recording():
+		is_recording = true
+		recording_time = 0
+		
+		# Actualizar UI
+		record_button.visible = false
+		record_button.disabled = true
+		stop_button.visible = true
+		stop_button.disabled = false
+		play_button.visible = false
+		play_button.disabled = true
+		confirm_button.disabled = true
+		
+		info_label.text = "🎤 GRABANDO... Habla ahora!\n\n" + \
+						"Dibujo " + str(GameManager.current_drawing_index + 1) + " de " + str(GameManager.drawings_to_record.size())
+		
+		timer_label.text = "Tiempo: 0s / " + str(max_recording_time) + "s"
+		
+		print("✓ Grabación iniciada")
+		
+		# Iniciar temporizador
+		_update_timer()
+	else:
+		print("✗ Error al iniciar la grabación")
+		info_label.text = "❌ Error al iniciar la grabación\n\nVerifica tu micrófono"
 
 func stop_recording():
 	if not is_recording:
 		print("⚠ No se está grabando")
-		return
+		return false
 	
 	print("Deteniendo grabación...")
 	
-	# Desactivar grabación
-	audio_effect_record.set_recording_active(false)
+	# Desactivar grabación usando GameManager
+	var recording = await GameManager.stop_recording()
 	
-	# Obtener la grabación
-	current_recording = audio_effect_record.get_recording()
-	
-	if current_recording and current_recording.data.size() > 0:
-		# Configurar parámetros del audio
-		current_recording.mix_rate = 44100  # 44.1 kHz
-		current_recording.stereo = false    # Mono
-		current_recording.format = AudioStreamWAV.FORMAT_16_BITS
-		
+	if recording and recording.data.size() > 0:
 		# Guardar los datos
-		current_audio_data = current_recording.data
+		current_audio_data = recording.data
 		print("✓ Audio grabado: ", current_audio_data.size(), " bytes")
-		
 	else:
 		print("⚠ No se grabó audio, creando audio de prueba...")
 		_create_test_audio()
@@ -215,25 +193,28 @@ func stop_recording():
 					"Puedes escucharla o confirmar para continuar"
 	
 	print("✓ Grabación detenida y procesada")
+	return true
 
 func _create_test_audio():
-	print("Creando audio de prueba WAV...")
+	print("Creando audio de prueba...")
 	
-	# Crear un StreamPeerBuffer para escribir bytes
-	var buffer = StreamPeerBuffer.new()
-	buffer.big_endian = false  # Little endian para WAV
-	
-	# Parámetros del audio
+	# Crear un audio simple de prueba
 	var sample_rate = 44100
 	var duration = min(recording_time, max_recording_time)
+	if duration < 1:
+		duration = 2  # Mínimo 2 segundos
+	
 	var num_samples = int(sample_rate * duration)
 	
-	print("  - Sample rate: ", sample_rate, " Hz")
+	print("  - Sample rate: ", sample_rate)
 	print("  - Duración: ", duration, " segundos")
 	print("  - Número de muestras: ", num_samples)
 	
-	# Cabecera WAV
-	# RIFF header
+	# Crear buffer para los datos
+	var buffer = StreamPeerBuffer.new()
+	buffer.big_endian = false  # Little endian para WAV
+	
+	# Cabecera RIFF
 	buffer.put_data("RIFF".to_ascii_buffer())
 	
 	# Tamaño del archivo - 36 + (num_samples * 2 bytes por muestra)
@@ -267,34 +248,36 @@ func _create_test_audio():
 	var data_size = num_samples * 1 * 2
 	buffer.put_u32(data_size)
 	
-	# Generar onda sinusoidal más grave y suave
-	var frequency = 220.0  # Hz (más grave que 440Hz)
-	var amplitude = 0.2    # Más bajo para no molestar
+	# Generar tono de prueba (220Hz - más grave)
+	var frequency = 220.0
+	var amplitude = 0.5
 	
-	print("  - Generando onda sinusoidal: ", frequency, " Hz, amplitud: ", amplitude)
+	print("  - Generando tono de prueba: ", frequency, " Hz")
 	
 	for i in range(num_samples):
 		var t = float(i) / sample_rate
 		
-		# Frecuencia que baja gradualmente para evitar tono fijo
-		var current_freq = frequency * (1.0 - float(i) / num_samples * 0.3)
-		
-		# Onda sinusoidal
+		# Onda sinusoidal con frecuencia que varía un poco
+		var current_freq = frequency * (1.0 + 0.1 * sin(2.0 * PI * 0.5 * t))
 		var sample = sin(2.0 * PI * current_freq * t) * amplitude
 		
-		# Convertir a 16-bit (rango: -32768 a 32767)
+		# Convertir a 16-bit
 		var sample_16bit = int(sample * 32767)
 		
-		# Escribir en little endian (2 bytes)
+		# Escribir en little endian
 		buffer.put_16(sample_16bit)
 	
-	# Obtener los datos finales
 	current_audio_data = buffer.data_array
-	
 	print("✓ Audio de prueba creado: ", current_audio_data.size(), " bytes")
+
+func _on_RecordButton_pressed():
+	print("Botón Grabar presionado")
+	start_recording()
 
 func _on_StopButton_pressed():
 	print("Botón Parar presionado")
+	# Llamar a stop_recording pero no esperar el resultado aquí
+	# porque sería una coroutine
 	stop_recording()
 
 func _on_PlayButton_pressed():
@@ -311,10 +294,25 @@ func play_recording():
 	
 	# Crear AudioStreamWAV desde los datos
 	var playback_stream = AudioStreamWAV.new()
-	playback_stream.data = current_audio_data
+	
+	# Crear una copia de los datos
+	var audio_data_copy = PackedByteArray()
+	audio_data_copy.resize(current_audio_data.size())
+	for i in range(current_audio_data.size()):
+		audio_data_copy[i] = current_audio_data[i]
+	
+	playback_stream.data = audio_data_copy
 	playback_stream.format = AudioStreamWAV.FORMAT_16_BITS
 	playback_stream.mix_rate = 44100
 	playback_stream.stereo = false
+	
+	# Configurar audio player
+	audio_player.bus = "Master"
+	audio_player.volume_db = 0.0
+	
+	# Detener reproducción anterior
+	if audio_player.playing:
+		audio_player.stop()
 	
 	# Reproducir
 	audio_player.stream = playback_stream
@@ -323,7 +321,11 @@ func play_recording():
 	info_label.text = "▶️ Reproduciendo grabación...\n\n" + \
 					"Dibujo " + str(GameManager.current_drawing_index + 1) + " de " + str(GameManager.drawings_to_record.size())
 	
-	print("✓ Reproducción iniciada")
+	print("✓ Reproducción iniciada - Duración: ", playback_stream.get_length(), " segundos")
+	
+	# Verificar el volumen
+	print("  - Volumen del AudioPlayer: ", audio_player.volume_db)
+	print("  - Bus del AudioPlayer: ", audio_player.bus)
 
 func _on_playback_finished():
 	if is_recording:
@@ -332,6 +334,19 @@ func _on_playback_finished():
 	print("Reproducción completada")
 	info_label.text = "✅ Reproducción completada\n\n" + \
 					"Puedes regrabar o confirmar para continuar"
+
+func _update_timer():
+	if is_recording:
+		recording_time += 1
+		timer_label.text = "Tiempo: " + str(recording_time) + "s / " + str(max_recording_time) + "s"
+		
+		if recording_time >= max_recording_time:
+			print("⏰ Tiempo de grabación máximo alcanzado")
+			stop_recording()
+			return
+		
+		await get_tree().create_timer(1).timeout
+		_update_timer()
 
 func _on_FinishButton_pressed():
 	if voice_finished:
@@ -347,15 +362,19 @@ func _on_FinishButton_pressed():
 		
 		if current_audio_data.size() > 0:
 			GameManager.save_local_voice(drawing_id, current_audio_data)
+			print("✓ Voz guardada: ", current_audio_data.size(), " bytes")
 		else:
 			print("⚠ Sin datos de audio, creando audio de prueba")
 			_create_test_audio()
 			if current_audio_data.size() > 0:
 				GameManager.save_local_voice(drawing_id, current_audio_data)
+				print("✓ Voz de prueba guardada: ", current_audio_data.size(), " bytes")
 		
 		# Pasar al siguiente dibujo
 		if GameManager.next_drawing():
 			print("✓ Pasando al siguiente dibujo")
+			recording_time = 0
+			current_audio_data = PackedByteArray()
 			show_next_drawing()
 			
 			# Resetear botones
@@ -365,9 +384,6 @@ func _on_FinishButton_pressed():
 			play_button.visible = false
 			play_button.disabled = true
 			confirm_button.disabled = true
-			
-			current_audio_data = PackedByteArray()
-			current_recording = null
 			
 		else:
 			# Todos los dibujos completados
@@ -431,19 +447,6 @@ func check_if_all_finished_voice():
 func get_total_players() -> int:
 	return multiplayer.get_peers().size() + 1
 
-func _update_timer():
-	if is_recording:
-		recording_time += 1
-		timer_label.text = "Tiempo: " + str(recording_time) + "s / " + str(max_recording_time) + "s"
-		
-		if recording_time >= max_recording_time:
-			print("⏰ Tiempo de grabación máximo alcanzado")
-			stop_recording()
-			return
-		
-		await get_tree().create_timer(1).timeout
-		_update_timer()
-
 @rpc("authority", "call_local")
 func start_recap():
 	print("=== CAMBIANDO A RECAP ===")
@@ -465,5 +468,9 @@ func _exit_tree():
 	
 	# Detener grabación si está activa
 	if is_recording:
-		audio_effect_record.set_recording_active(false)
+		# No podemos usar await aquí, así que llamamos directamente
+		GameManager.audio_effect_record.set_recording_active(false)
 		print("✓ Grabación detenida al salir de la escena")
+	
+	# Limpiar datos
+	current_audio_data = PackedByteArray()
