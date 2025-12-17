@@ -189,15 +189,18 @@ func _on_FinishButton_pressed():
 		voice_finished = true
 		finish_voice_round()
 
+# EN voice_round.gd, REEMPLAZAR LA FUNCIÓN save_voice_for_drawing:
+
 func save_voice_for_drawing(drawing_id: int):
 	if current_audio_data.size() == 0:
 		print("ADVERTENCIA: No hay audio para guardar para el dibujo ", drawing_id)
 		# Crear audio vacío de prueba
 		current_audio_data = create_silent_audio()
+		print("Audio de silencio creado: ", current_audio_data.size(), " bytes")
 	
 	# Guardar localmente
 	GameManager.save_local_voice(drawing_id, current_audio_data)
-	print("Voz guardada localmente para dibujo de jugador ", drawing_id)
+	print("Voz guardada localmente para dibujo de jugador ", drawing_id, " (", current_audio_data.size(), " bytes)")
 	
 	# Enviar al host
 	var my_id = multiplayer.get_unique_id()

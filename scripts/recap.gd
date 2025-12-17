@@ -37,9 +37,15 @@ func _ready():
 	# Configurar botones de rating
 	setup_rating_buttons()
 	
+	# Configurar botones de interacción
+	replay_button.pressed.connect(_on_replay_button_pressed)
+	next_voice_button.pressed.connect(_on_next_voice_button_pressed)
+	next_drawing_button.pressed.connect(_on_next_drawing_button_pressed)
+	
 	# Si es el host, inicializar el Recap
 	if GameManager.is_host:
 		GameManager.setup_recap()
+		print("Host: Recap configurado con ", GameManager.recap_drawing_ids.size(), " dibujos")
 		# Mostrar el primer dibujo a todos los jugadores
 		show_current_drawing_to_all()
 	
@@ -116,10 +122,11 @@ func show_current_drawing_to_all():
 		var voice_owners = GameManager.get_voice_owners_for_drawing(drawing_id)
 		print("Mostrando dibujo ", drawing_id, " con ", voice_owners.size(), " voces")
 		
-		# Enviar a todos los jugadores
-		rpc("show_drawing_rpc", drawing_id)
-		# Mostrar localmente también
+		# Mostrar localmente primero
 		show_current_drawing()
+		
+		# Luego enviar a todos los jugadores
+		rpc("show_drawing_rpc", drawing_id)
 
 @rpc("any_peer", "call_local")
 func show_drawing_rpc(drawing_id: int):
@@ -182,12 +189,18 @@ func show_current_voice():
 	# Actualizar botones de rating
 	update_rating_buttons()
 
+func _on_replay_button_pressed():
+	play_current_voice()
+
 func play_current_voice():
 	var voice_data = GameManager.get_current_recap_voice()
 	
 	if voice_data.size() == 0:
 		status_label.text = "No hay audio para reproducir"
+		print("ERROR: Datos de audio vacíos")
 		return
+	
+	print("Reproduciendo audio de ", voice_data.size(), " bytes")
 	
 	# Detener cualquier reproducción en curso
 	if audio_player.playing:
@@ -196,6 +209,8 @@ func play_current_voice():
 	# Crear stream de audio
 	var audio_stream = AudioStreamWAV.new()
 	audio_stream.data = voice_data
+	
+	# Configurar el formato correctamente
 	audio_stream.format = AudioStreamWAV.FORMAT_16_BITS
 	audio_stream.mix_rate = 44100
 	audio_stream.stereo = true
@@ -206,13 +221,12 @@ func play_current_voice():
 	
 	var voice_owner_id = GameManager.get_current_recap_voice_owner_id()
 	status_label.text = "Reproduciendo voz de Jugador " + str(voice_owner_id) + "..."
+	print("Iniciando reproducción de voz de jugador ", voice_owner_id)
 	
 	# Esperar a que termine
 	await audio_player.finished
 	status_label.text = "Audio terminado"
-
-func _on_replay_button_pressed():
-	play_current_voice()
+	print("Reproducción completada")
 
 func _on_next_voice_button_pressed():
 	if not GameManager.is_host:
@@ -223,6 +237,7 @@ func _on_next_voice_button_pressed():
 	
 	# Pasar a la siguiente voz
 	if GameManager.next_recap_voice():
+		print("Avanzando a siguiente voz")
 		# Enviar a todos los jugadores
 		rpc("show_next_voice_rpc")
 		# Mostrar localmente
@@ -286,10 +301,12 @@ func _on_next_drawing_button_pressed():
 	
 	# Avanzar al siguiente dibujo
 	if GameManager.next_recap_drawing():
+		print("Avanzando a siguiente dibujo")
 		# Mostrar el nuevo dibujo a todos los jugadores
 		show_current_drawing_to_all()
 	else:
 		# Todos los dibujos revisados, mostrar resultados
+		print("Mostrando resultados finales")
 		show_final_results_to_all()
 
 # Mostrar resultados finales a todos
@@ -360,5 +377,6 @@ func show_final_results():
 
 func _on_finalize_game():
 	# Volver al lobby o reiniciar
+	print("Finalizando juego, volviendo al lobby...")
 	GameManager.reset_game()
 	get_tree().change_scene_to_file("res://scenes/Lobby.tscn")

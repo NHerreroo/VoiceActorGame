@@ -179,6 +179,9 @@ func get_voice_owners_for_drawing(drawing_id: int) -> Array:
 	return voices[drawing_id].keys()
 
 # NUEVO: Obtener el audio actual del Recap
+# EN GameManager.gd, MODIFICAR LA FUNCIÓN get_current_recap_voice:
+
+# NUEVO: Obtener el audio actual del Recap
 func get_current_recap_voice() -> PackedByteArray:
 	var drawing_id = get_current_recap_drawing_id()
 	var voice_owner_id = get_current_recap_voice_owner_id()
@@ -186,7 +189,15 @@ func get_current_recap_voice() -> PackedByteArray:
 	if drawing_id == -1 or voice_owner_id == -1:
 		return PackedByteArray()
 	
-	return get_voice_for_drawing_by_player(drawing_id, voice_owner_id)
+	var audio_data = get_voice_for_drawing_by_player(drawing_id, voice_owner_id)
+	
+	if audio_data.size() == 0:
+		print("ADVERTENCIA: No se encontró audio para dibujo ", drawing_id, " de jugador ", voice_owner_id)
+		# Mostrar qué voces están disponibles para debugging
+		if voices.has(drawing_id):
+			print("Voces disponibles para este dibujo: ", voices[drawing_id].keys())
+	
+	return audio_data
 
 func add_voice_assignment(drawing_id: int, voice_owner_id: int):
 	if not voice_assignments.has(drawing_id):
