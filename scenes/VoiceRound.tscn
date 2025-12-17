@@ -40,6 +40,11 @@ offset_right = 650.0
 offset_bottom = 500.0
 text = "Tiempo: 0s / 10s"
 
+[node name="MicInfo" type="Label" parent="."]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 23.0
+
 [node name="ButtonContainer" type="HBoxContainer" parent="."]
 layout_mode = 0
 offset_left = 350.0
@@ -65,6 +70,10 @@ text = "▶️ Escuchar"
 [node name="FinishButton" type="Button" parent="ButtonContainer"]
 layout_mode = 2
 text = "✅ Confirmar"
+
+[node name="AudioPlayer" type="AudioStreamPlayer" parent="."]
+
+[node name="AudioRecordBus" type="Node" parent="."]
 
 [connection signal="pressed" from="ButtonContainer/RecordButton" to="." method="_on_RecordButton_pressed"]
 [connection signal="pressed" from="ButtonContainer/StopButton" to="." method="_on_StopButton_pressed"]

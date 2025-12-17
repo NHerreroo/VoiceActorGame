@@ -20,15 +20,19 @@ var voices := {}       # drawing_id -> PackedByteArray (datos de audio)
 var current_drawing_index := 0
 var drawings_to_record := []  # IDs de los dibujos que este jugador debe grabar
 
+# Variables para micrófono
+var available_mics := []  # Nombres de micrófonos disponibles
+var selected_mic := ""    # Micrófono seleccionado
+
 func reset_game():
 	drawings.clear()
 	voices.clear()
 	drawings_submitted.clear()
-	voice_finished_players.clear()  # AÑADIDO
+	voice_finished_players.clear()
 	current_drawing_index = 0
 	drawings_to_record.clear()
 
-func reset_voice_phase():  # NUEVA FUNCIÓN
+func reset_voice_phase():
 	voice_finished_players.clear()
 	current_drawing_index = 0
 
@@ -36,6 +40,12 @@ func reset_voice_phase():  # NUEVA FUNCIÓN
 func save_local_drawing(image_data: PackedByteArray):
 	var my_id = multiplayer.get_unique_id()
 	drawings[my_id] = image_data
+	print("Dibujo guardado para jugador ", my_id, " (", image_data.size(), " bytes)")
+
+# Guardar voz localmente
+func save_local_voice(drawing_id: int, audio_data: PackedByteArray):
+	voices[drawing_id] = audio_data
+	print("Voz guardada para dibujo ", drawing_id, " (", audio_data.size(), " bytes)")
 
 # Obtener la lista de dibujos a grabar (excluyendo el propio)
 func setup_voice_round():
@@ -71,3 +81,35 @@ func next_drawing() -> bool:
 
 func has_more_drawings() -> bool:
 	return current_drawing_index < drawings_to_record.size()
+
+# Funciones para micrófono
+func get_available_microphones() -> Array:
+	available_mics.clear()
+	
+	# Obtener todos los dispositivos de captura
+	var capture_devices = AudioServer.get_input_device_list()
+	
+	for device in capture_devices:
+		available_mics.append(device)
+	
+	print("Micrófonos disponibles: ", available_mics)
+	
+	# Si hay micrófonos, seleccionar el primero por defecto
+	if available_mics.size() > 0 and selected_mic == "":
+		selected_mic = available_mics[0]
+		print("Micrófono seleccionado por defecto: ", selected_mic)
+	
+	return available_mics
+
+func set_microphone(mic_name: String) -> bool:
+	if mic_name in available_mics:
+		AudioServer.set_input_device(mic_name)
+		selected_mic = mic_name
+		print("Micrófono configurado: ", mic_name)
+		return true
+	else:
+		print("Error: Micrófono no disponible: ", mic_name)
+		return false
+
+func get_current_microphone() -> String:
+	return AudioServer.get_input_device()

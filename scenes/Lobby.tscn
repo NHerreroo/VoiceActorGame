@@ -12,7 +12,30 @@ layout_mode = 0
 offset_left = 411.0
 offset_top = 182.0
 offset_right = 643.0
-offset_bottom = 342.0
+offset_bottom = 419.0
+
+[node name="MicContainer" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="MicLabel" type="Label" parent="VBoxContainer/MicContainer"]
+layout_mode = 2
+
+[node name="MicDropdown" type="OptionButton" parent="VBoxContainer/MicContainer"]
+layout_mode = 2
+
+[node name="RefreshMichButton" type="Button" parent="VBoxContainer/MicContainer"]
+layout_mode = 2
+text = "Refresh"
+
+[node name="TestMicButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "Test Mic"
+
+[node name="TestStatus" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="Spacer" type="Control" parent="VBoxContainer"]
+layout_mode = 2
 
 [node name="HostButton" type="Button" parent="VBoxContainer"]
 layout_mode = 2
@@ -31,6 +54,13 @@ text = "Join"
 layout_mode = 2
 text = "Start"
 
+[node name="AudioRecordBus" type="Node" parent="."]
+
+[node name="AudioTestPlayer" type="AudioStreamPlayer" parent="."]
+
+[connection signal="item_selected" from="VBoxContainer/MicContainer/MicDropdown" to="." method="_on_MicDropdown_item_selected"]
+[connection signal="pressed" from="VBoxContainer/MicContainer/RefreshMichButton" to="." method="_on_RefreshMicButton_pressed"]
+[connection signal="pressed" from="VBoxContainer/TestMicButton" to="." method="_on_TestMicButton_pressed"]
 [connection signal="pressed" from="VBoxContainer/HostButton" to="." method="_on_host_button_pressed"]
 [connection signal="pressed" from="VBoxContainer/JoinButton" to="." method="_on_JoinButton_pressed"]
 [connection signal="pressed" from="VBoxContainer/StartButton" to="." method="_on_StartButton_pressed"]
