@@ -11,11 +11,173 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_f238v")
 
-[node name="RecapLabel" type="Label" parent="."]
+[node name="Background" type="ColorRect" parent="."]
 layout_mode = 0
-offset_left = 537.0
-offset_top = 101.0
-offset_right = 685.0
-offset_bottom = 179.0
-text = "Recap
+offset_right = 1151.0
+offset_bottom = 649.0
+color = Color(0.1, 0.1, 0.15, 1)
+
+[node name="TitleLabel" type="Label" parent="."]
+layout_mode = 0
+offset_left = 400.0
+offset_top = 20.0
+offset_right = 750.0
+offset_bottom = 80.0
+theme_override_font_sizes/font_size = 36
+text = "🎙️ RECAP - VOCES A DIBUJOS 🎨"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="DrawingContainer" type="VBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 100.0
+offset_top = 100.0
+offset_right = 1051.0
+offset_bottom = 550.0
+
+[node name="CurrentDrawingInfo" type="Label" parent="DrawingContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "Dibujo de Jugador X"
+horizontal_alignment = 1
+
+[node name="DrawingTexture" type="TextureRect" parent="DrawingContainer"]
+custom_minimum_size = Vector2(400, 300)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 3
+
+[node name="VoiceInfoLabel" type="Label" parent="DrawingContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Voz de Jugador Y"
+horizontal_alignment = 1
+
+[node name="ControlsContainer" type="HBoxContainer" parent="DrawingContainer"]
+custom_minimum_size = Vector2(400, 50)
+layout_mode = 2
+alignment = 1
+
+[node name="ReplayButton" type="Button" parent="DrawingContainer/ControlsContainer"]
+layout_mode = 2
+text = "Replay
 "
+
+[node name="NextVoiceButton" type="Button" parent="DrawingContainer/ControlsContainer"]
+layout_mode = 2
+text = "NextVoice"
+
+[node name="Spacer1" type="Control" parent="DrawingContainer/ControlsContainer"]
+custom_minimum_size = Vector2(20, 0)
+layout_mode = 2
+
+[node name="RatingContainer" type="VBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 400.0
+offset_top = 450.0
+offset_right = 750.0
+offset_bottom = 600.0
+
+[node name="RatingLabel" type="Label" parent="RatingContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Puntuación (1-10):"
+horizontal_alignment = 1
+
+[node name="RatingButtons" type="HBoxContainer" parent="RatingContainer"]
+custom_minimum_size = Vector2(400, 50)
+layout_mode = 2
+alignment = 1
+
+[node name="Rating1" type="Button" parent="RatingContainer/RatingButtons"]
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+text = "1"
+flat = true
+
+[node name="Rating2" type="Button" parent="RatingContainer/RatingButtons"]
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+text = "1"
+flat = true
+
+[node name="Rating3" type="Button" parent="RatingContainer/RatingButtons"]
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+text = "1"
+flat = true
+
+[node name="Rating4" type="Button" parent="RatingContainer/RatingButtons"]
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+text = "1"
+flat = true
+
+[node name="Rating5" type="Button" parent="RatingContainer/RatingButtons"]
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+text = "1"
+flat = true
+
+[node name="Rating6" type="Button" parent="RatingContainer/RatingButtons"]
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+text = "1"
+flat = true
+
+[node name="Rating7" type="Button" parent="RatingContainer/RatingButtons"]
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+text = "1"
+flat = true
+
+[node name="Rating8" type="Button" parent="RatingContainer/RatingButtons"]
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+text = "1"
+flat = true
+
+[node name="Rating9" type="Button" parent="RatingContainer/RatingButtons"]
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+text = "1"
+flat = true
+
+[node name="Rating10" type="Button" parent="RatingContainer/RatingButtons"]
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+text = "1"
+flat = true
+
+[node name="SelectedRating" type="Label" parent="RatingContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = "Seleccionado: -"
+horizontal_alignment = 1
+
+[node name="HostControls" type="HBoxContainer" parent="."]
+layout_mode = 0
+offset_left = 400.0
+offset_top = 580.0
+offset_right = 750.0
+offset_bottom = 630.0
+alignment = 1
+
+[node name="NextDrawingButton" type="Button" parent="HostControls"]
+visible = false
+custom_minimum_size = Vector2(200, 40)
+layout_mode = 2
+text = "⏭️ Siguiente Dibujo"
+
+[node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="."]
+
+[node name="StatusLabel" type="Label" parent="."]
+layout_mode = 0
+offset_left = 20.0
+offset_top = 610.0
+offset_right = 1131.0
+offset_bottom = 640.0
+text = "Esperando..."
+horizontal_alignment = 1
+
+[connection signal="pressed" from="HostControls/NextDrawingButton" to="." method="_on_next_drawing_button_pressed"]
