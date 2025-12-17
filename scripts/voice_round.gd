@@ -188,19 +188,21 @@ func _on_FinishButton_pressed():
 		# Terminar ronda
 		voice_finished = true
 		finish_voice_round()
-
+		
+		
 func save_voice_for_drawing(drawing_id: int):
 	if current_audio_data.size() == 0:
 		print("ADVERTENCIA: No hay audio para guardar para el dibujo ", drawing_id)
 		# Crear audio vacío de prueba
 		current_audio_data = create_silent_audio()
 	
-	# Guardar localmente
-	GameManager.voices[drawing_id] = current_audio_data
-	print("Voz guardada localmente para dibujo de jugador ", drawing_id, " (", current_audio_data.size(), " bytes)")
+	# Guardar localmente con una clave compuesta
+	var my_id = multiplayer.get_unique_id()
+	var voice_key = str(drawing_id) + "_" + str(my_id)
+	GameManager.voices[voice_key] = current_audio_data
+	print("Voz guardada localmente: ", voice_key, " (", current_audio_data.size(), " bytes)")
 	
 	# Enviar al host
-	var my_id = multiplayer.get_unique_id()
 	rpc_id(1, "submit_voice", drawing_id, my_id, current_audio_data)
 
 func create_silent_audio() -> PackedByteArray:
@@ -234,7 +236,11 @@ func submit_voice(drawing_id: int, sender_id: int, audio_data: PackedByteArray):
 		return
 	
 	print("HOST: Recibida voz para dibujo ", drawing_id, " de jugador ", sender_id)
-	GameManager.voices[drawing_id] = audio_data
+	var voice_key = str(drawing_id) + "_" + str(sender_id)
+	GameManager.voices[voice_key] = audio_data
+	
+	# Reenviar a todos los jugadores
+	rpc("receive_voice", drawing_id, sender_id, audio_data)
 
 @rpc("any_peer")
 func player_finished_voice(player_id: int):
@@ -243,6 +249,14 @@ func player_finished_voice(player_id: int):
 	
 	host_player_finished_voice(player_id)
 
+
+@rpc("authority", "call_local", "reliable")
+func receive_voice(drawing_id: int, sender_id: int, audio_data: PackedByteArray):
+	var voice_key = str(drawing_id) + "_" + str(sender_id)
+	GameManager.voices[voice_key] = audio_data
+	print("Recibida voz: ", voice_key)
+	
+	
 func host_player_finished_voice(player_id: int):
 	if player_id in GameManager.voice_finished_players:
 		return
