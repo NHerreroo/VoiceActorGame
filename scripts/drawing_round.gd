@@ -114,6 +114,9 @@ func change_to_voice_phase():
 		rpc("receive_all_drawings", player_id, image_data)
 		print("Enviado dibujo de jugador ", player_id)
 	
+	# Resetear estado de voz (IMPORTANTE)
+	GameManager.reset_voice_phase()
+	
 	# Esperar un momento y cambiar de fase
 	await get_tree().create_timer(0.5).timeout
 	rpc("start_voice_phase")

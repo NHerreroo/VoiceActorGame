@@ -10,11 +10,13 @@ var room_code := ""
 var finished_players := []
 var drawings_submitted := []  # IDs de jugadores que ya enviaron dibujos
 
+# Nueva variable para la ronda de voz
+var voice_finished_players := []  # IDs de jugadores que terminaron la ronda de voz
+
 var players := {}      # peer_id -> name
 var drawings := {}     # peer_id -> PackedByteArray (datos PNG)
 var voices := {}       # drawing_id -> PackedByteArray (datos de audio)
 
-# Nueva variable para la ronda de voz
 var current_drawing_index := 0
 var drawings_to_record := []  # IDs de los dibujos que este jugador debe grabar
 
@@ -22,14 +24,19 @@ func reset_game():
 	drawings.clear()
 	voices.clear()
 	drawings_submitted.clear()
+	voice_finished_players.clear()  # AÑADIDO
 	current_drawing_index = 0
 	drawings_to_record.clear()
+
+func reset_voice_phase():  # NUEVA FUNCIÓN
+	voice_finished_players.clear()
+	current_drawing_index = 0
 
 # Guardar dibujo localmente
 func save_local_drawing(image_data: PackedByteArray):
 	var my_id = multiplayer.get_unique_id()
 	drawings[my_id] = image_data
-	
+
 # Obtener la lista de dibujos a grabar (excluyendo el propio)
 func setup_voice_round():
 	var my_id = multiplayer.get_unique_id()
@@ -42,7 +49,7 @@ func setup_voice_round():
 	print("Dibujos a grabar: ", drawings_to_record)
 	current_drawing_index = 0
 
-# Obtener el dibujo actual para grabar - CAMBIADO A PackedByteArray
+# Obtener el dibujo actual para grabar
 func get_current_drawing() -> PackedByteArray:
 	if drawings_to_record.size() == 0:
 		return PackedByteArray()

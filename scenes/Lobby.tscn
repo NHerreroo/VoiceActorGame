@@ -20,6 +20,7 @@ text = "Host Game"
 
 [node name="IPInput" type="LineEdit" parent="VBoxContainer"]
 layout_mode = 2
+text = "127.0.0.1"
 placeholder_text = "Ip"
 
 [node name="JoinButton" type="Button" parent="VBoxContainer"]

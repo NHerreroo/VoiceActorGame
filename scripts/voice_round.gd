@@ -13,13 +13,21 @@ var current_audio = null
 var is_recording := false
 var recording_time := 0
 var max_recording_time := 10
+var voice_finished := false  # NUEVA: para evitar múltiples envíos
 
 func _ready():
+	# Resetear estado de voz
+	voice_finished = false
+	
 	# Configurar UI inicial
 	record_button.visible = true
 	stop_button.visible = false
 	play_button.visible = false
 	confirm_button.disabled = true
+	
+	# Si es host, limpiar lista de jugadores terminados
+	if GameManager.is_host:
+		GameManager.voice_finished_players.clear()
 	
 	# Mostrar el primer dibujo
 	show_next_drawing()
@@ -89,6 +97,9 @@ func _on_PlayButton_pressed():
 	info_label.text = "Grabación completada. Puedes escucharla o confirmar."
 
 func _on_FinishButton_pressed():
+	if voice_finished:
+		return
+	
 	if GameManager.has_more_drawings():
 		# Guardar la voz para este dibujo
 		var drawing_id = GameManager.get_current_player_id()
@@ -104,19 +115,58 @@ func _on_FinishButton_pressed():
 			confirm_button.disabled = true
 		else:
 			# Todos los dibujos completados
-			if GameManager.is_host:
-				rpc("start_recap")
-			else:
-				info_label.text = "Esperando a que otros terminen..."
+			voice_finished = true
+			finish_voice_round()
 	else:
 		# Terminar ronda
-		if GameManager.is_host:
-			rpc("start_recap")
+		voice_finished = true
+		finish_voice_round()
 
 func save_voice_for_drawing(drawing_id: int):
 	# Aquí guardarías el audio grabado
 	# Por ahora solo marcamos que está completado
 	print("Voz guardada para dibujo de jugador ", drawing_id)
+
+func finish_voice_round():
+	var my_id = multiplayer.get_unique_id()
+	print("Jugador terminó ronda de voz:", my_id)
+	
+	# Marcar como terminado
+	if GameManager.is_host:
+		host_player_finished_voice(my_id)
+	else:
+		rpc_id(1, "player_finished_voice", my_id)
+	
+	info_label.text = "Esperando a que otros terminen..."
+
+@rpc("any_peer")
+func player_finished_voice(player_id: int):
+	if not GameManager.is_host:
+		return
+	
+	host_player_finished_voice(player_id)
+
+func host_player_finished_voice(player_id: int):
+	if player_id in GameManager.voice_finished_players:
+		return
+	
+	GameManager.voice_finished_players.append(player_id)
+	print(
+		"HOST: terminados voz ",
+		GameManager.voice_finished_players.size(),
+		"/",
+		get_total_players()
+	)
+	check_if_all_finished_voice()
+
+func check_if_all_finished_voice():
+	if GameManager.voice_finished_players.size() >= get_total_players():
+		print("TODOS TERMINARON LA RONDA DE VOZ")
+		# Enviar a todos los jugadores al recap
+		rpc("start_recap")
+
+func get_total_players() -> int:
+	return multiplayer.get_peers().size() + 1
 
 func _update_timer():
 	if is_recording:
@@ -129,7 +179,7 @@ func _update_timer():
 		await get_tree().create_timer(1).timeout
 		_update_timer()
 
-@rpc("authority")
+@rpc("authority", "call_local")
 func start_recap():
 	GameManager.current_phase = GameManager.Phase.RECAP
 	get_tree().change_scene_to_file("res://scenes/Recap.tscn")
