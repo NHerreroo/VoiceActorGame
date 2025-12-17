@@ -14,16 +14,17 @@ var mic_stream: AudioStreamMicrophone
 var record_effect: AudioEffectRecord
 var recorded_audio: AudioStreamWAV
 
+var mic_bus_index := -1
+var monitoring := false
 
 
 func _ready():
 	start_button.visible = false
 	_setup_microphones()
 
-	test_mic_button.pressed.connect(_on_test_mic_pressed)
-
-	var mic_bus_index = AudioServer.get_bus_index("Mic")
+	mic_bus_index = AudioServer.get_bus_index("Mic")
 	record_effect = AudioServer.get_bus_effect(mic_bus_index, 0)
+
 
 
 # ----------------------------------------
@@ -48,14 +49,12 @@ func _on_mic_selected(index: int):
 	AudioServer.input_device = device
 	print("Mic activo:", device)
 
-
-
 # ----------------------------------------
 # TEST MIC
 # ----------------------------------------
 
 func _on_test_mic_pressed():
-	print("🎤 Grabando...")
+	print("🎤 TEST MIC INICIADO (habla ahora)")
 
 	mic_stream = AudioStreamMicrophone.new()
 	mic_player.stream = mic_stream
@@ -63,18 +62,36 @@ func _on_test_mic_pressed():
 	record_effect.set_recording_active(true)
 	mic_player.play()
 
-	await get_tree().create_timer(2.5).timeout
+	monitoring = true
+	_monitor_mic_level()
 
+	await get_tree().create_timer(3.0).timeout
+
+	monitoring = false
 	mic_player.stop()
+	mic_player.stream = null
 	record_effect.set_recording_active(false)
 
-	recorded_audio = record_effect.get_recording()
+	print("🛑 TEST MIC FINALIZADO")
 
-	if recorded_audio:
-		print("Audio grabado:", recorded_audio.get_length(), "s")
-		_play_recording()
-	else:
-		print("❌ No se grabó audio")
+func _monitor_mic_level():
+	if not monitoring:
+		return
+
+	var left_db = AudioServer.get_bus_peak_volume_left_db(mic_bus_index, 0)
+	var right_db = AudioServer.get_bus_peak_volume_right_db(mic_bus_index, 0)
+
+	# Convertimos dB a un valor más legible (0–100)
+	var level = int(clamp((left_db + 60) * 2, 0, 100))
+
+	# Barra visual por consola
+	var bars = int(level / 5)
+	var meter = "|".repeat(bars)
+
+	print("MIC LEVEL:", left_db, "dB ", meter)
+
+	await get_tree().create_timer(0.1).timeout
+	_monitor_mic_level()
 
 
 func _play_recording():
