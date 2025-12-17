@@ -31,6 +31,24 @@ text = "Join"
 layout_mode = 2
 text = "Start"
 
+[node name="Label" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "Micro"
+
+[node name="MicOptionButton" type="OptionButton" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="TestMicButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "Test"
+
+[node name="AudioStreamPlayer_Mic" type="AudioStreamPlayer" parent="VBoxContainer"]
+bus = &"Mic"
+
+[node name="AudioStreamPlayer_Play" type="AudioStreamPlayer" parent="VBoxContainer"]
+
 [connection signal="pressed" from="VBoxContainer/HostButton" to="." method="_on_host_button_pressed"]
 [connection signal="pressed" from="VBoxContainer/JoinButton" to="." method="_on_JoinButton_pressed"]
 [connection signal="pressed" from="VBoxContainer/StartButton" to="." method="_on_StartButton_pressed"]
+[connection signal="item_selected" from="VBoxContainer/MicOptionButton" to="." method="_on_mic_selected"]
+[connection signal="pressed" from="VBoxContainer/TestMicButton" to="." method="_on_test_mic_pressed"]
