@@ -66,6 +66,11 @@ text = "▶️ Escuchar"
 layout_mode = 2
 text = "✅ Confirmar"
 
+[node name="AudioStreamPlayer_Mic" type="AudioStreamPlayer" parent="."]
+bus = &"Mic"
+
+[node name="AudioStreamPlayer_Play" type="AudioStreamPlayer" parent="."]
+
 [connection signal="pressed" from="ButtonContainer/RecordButton" to="." method="_on_RecordButton_pressed"]
 [connection signal="pressed" from="ButtonContainer/StopButton" to="." method="_on_StopButton_pressed"]
 [connection signal="pressed" from="ButtonContainer/PlayButton" to="." method="_on_PlayButton_pressed"]
